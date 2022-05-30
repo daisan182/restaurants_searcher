@@ -7,14 +7,16 @@ use GuzzleHttp\Client;
 $KEYID = "05ff7735f4bdc62a";
 $HIT_PER_PAGE = 100;
 $PREF = "Z011";
-$FREEWORD = "渋谷駅";
+$FREEWORD = '渋谷';
+$HIT_PER_PAGE = $argv[1];
+$TOTAL_COUNT = $argv[2];
 $FORMAT = "json";
 
-$PARAMS = ["key"=> $KEYID, "count"=>$HIT_PER_PAGE, "large_area"=>$PREF, "keyword"=>$FREEWORD, "format"=>$FORMAT];
+$PARAMS = ["key"=> $KEYID, "count"=>$TOTAL_COUNT, "large_area"=>$PREF, "keyword"=>$FREEWORD, "format"=>$FORMAT];
 
-function write_data_to_csv($params){
+function write_data_to_csv($params, $HIT_PER_PAGE=20){
     
-    $restaurants =[["名称","営業日","住所","アクセス"]];
+    $restaurants_header =["名称","営業日","住所","アクセス"];
     $client = new Client();
     try{
         $json_res = $client->request('GET', "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/", ['query' => $params])->getBody();
@@ -29,22 +31,26 @@ function write_data_to_csv($params){
     
     foreach($response["results"]["shop"] as $restaurant){
         $rest_info = [$restaurant["name"],$restaurant["open"],$restaurant["address"],$restaurant["access"]];
-        $restaurants[] = $rest_info;
+        $restaurants_data[] = $rest_info;
     }
-    $handle = fopen("restaurants_list.csv", "wb");
-    
-    foreach ($restaurants as $values){
-        fputcsv($handle, $values);
+    $chunk_restaurants = array_chunk($restaurants_data, $HIT_PER_PAGE);
+    print_r($chunk_restaurants);
+
+    foreach ($chunk_restaurants as $key => $restaurants){
+        $handle = fopen("restaurants_list_$key.csv", "wb");
+        
+        // CSVのヘッダーを出力
+        fputcsv($handle, $restaurants_header);
+
+        // CSVの中身を出力
+        foreach ($restaurants as $values){
+            fputcsv($handle, $values);
+        }
+        
+        fclose($handle);
     }
-    
-    fclose($handle);
-    return print_r($restaurants);
 }
 
-write_data_to_csv($PARAMS);
-
-// 宿題
-$FREEWORD = $argv[1];
-$HIT_PER_PAGE = $argv[2];
+write_data_to_csv($PARAMS, $HIT_PER_PAGE);
 
 ?>
